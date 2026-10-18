@@ -84,6 +84,14 @@ export function furnish(scene,obstacles,models={}){MODELS=models;const M=materia
   // Bollards keep the outer pavements, with gaps at crossings and doors.
   for(let x=-125;x<=125;x+=1.75){if([-66,0,66].some(c=>Math.abs(x-c)<2.6))continue;if(s<0&&Math.abs(x)<29)continue;B.add(BOLLARD,M.brown,x,0,s*80.15);obstacles.push({x,z:s*80.15,w:.16,d:.16,h:.95,label:'Bollard impact'});}}
  for(let x=-22;x<=22;x+=11)lamp(B,M,x,-102.6,obstacles);
+ // Lamps across the middle of the square, beside the walking routes so the paths are lit at night:
+ // a ring of four round the fountain, the two central walks, the north walk and a pair by the start.
+ // Each spot keeps clear of the ramps, the kids' pitch, the café and the line ahead of the spawn.
+ for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]])lamp(B,M,-35+dx*6.6,4+dz*6.6,obstacles);
+ for(const z of [-10,4,18,32])lamp(B,M,-24.5,z,obstacles);
+ for(const z of [-10,4,18,50])lamp(B,M,24.5,z,obstacles);
+ for(const x of [-36,-20,-4,12])lamp(B,M,x,-49.6,obstacles);
+ for(const x of [-9,9])lamp(B,M,x,26,obstacles);
  wallace(B,M,-71.5,9,obstacles);morris(B,M,71.5,-27,obstacles);
  terrace(B,M,-20,-9,82.9,obstacles);terrace(B,M,26,34,82.9,obstacles);
  return B.build(scene);}
