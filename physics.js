@@ -10,7 +10,7 @@ export function jumpVehicle(s){if(s.rail&&s.state==='riding'){exitRail(s,'jump',
 // Landing before the turn is complete counts as a misaligned landing.
 export function flipVehicle(s,dir){if(s.grounded||s.state!=='riding'||s.rail)return false;s.flipTarget=(s.flipping?s.flipTarget:s.tiltPitch)+dir*Math.PI*2;s.flipping=true;return true;}
 export function hurtVehicle(s,damage,cause,fall=false,side=1){if(s.state==='dead'||s.damageCooldown>0)return;s.health=clamp(s.health-damage,0,100);s.lastDamage=damage;s.cause=cause;s.hitId++;s.damageCooldown=.4;if(s.health<=0||fall){finishStance(s,false);if(s.rail)exitRail(s,'fall');s.state=s.health<=0?'dead':'fallen';s.boost=false;s.crashTimer=0;s.crashId++;s.crashAngular=side*(2+Math.min(damage/20,3));s.crashPitch=s.pitch+s.tiltPitch;s.crashRoll=s.roll+s.tiltRoll;s.vy=Math.max(s.vy,1);s.grounded=false;}}
-function floorGradient(terrain,x,z,dx,dz){const h=terrain(x,z),a=terrain(x+dx,z+dz),b=terrain(x-dx,z-dz);if(Math.abs(a-h)>.3||Math.abs(b-h)>.3)return 0;return clamp((a-b)/Math.hypot(dx*2,dz*2),-1.5,1.5);}
+function floorGradient(terrain,x,z,dx,dz){const h=terrain(x,z),a=terrain(x+dx,z+dz),b=terrain(x-dx,z-dz),step=terrain.smooth&&terrain.smooth(x,z)?.5:.3;if(Math.abs(a-h)>step||Math.abs(b-h)>step)return 0;return clamp((a-b)/Math.hypot(dx*2,dz*2),-1.5,1.5);}
 function contact(s,o){if(o.soft||o.railId&&o.railId===s.lastRailId&&s.railCooldown>0)return null;if(o.oneSided){const axis=o.oneSided,side=o.side,velocity=axis==='x'?s.vx:s.vz;if((s[axis]-o[axis])*side<0||velocity*side>=0)return null;}const radius=.5,minY=o.minY??0,top=o.railId?(o.h-.12):(o.h??35);if(s.y>=top-.04||s.y+1.5<=minY)return null;const nx=clamp(s.x,o.x-o.w/2,o.x+o.w/2),nz=clamp(s.z,o.z-o.d/2,o.z+o.d/2);let dx=s.x-nx,dz=s.z-nz,d=Math.hypot(dx,dz);if(d>=radius)return null;
  if(d<.00001){const penX=o.w/2-Math.abs(s.x-o.x),penZ=o.d/2-Math.abs(s.z-o.z);if(penX<penZ){dx=Math.sign(s.x-o.x)||1;dz=0;d=-penX}else{dx=0;dz=Math.sign(s.z-o.z)||1;d=-penZ}}else{dx/=d;dz/=d;}s.x+=dx*(radius-d+.001);s.z+=dz*(radius-d+.001);const vn=s.vx*dx+s.vz*dz;if(vn<0){s.vx-=dx*vn*1.08;s.vz-=dz*vn*1.08;return {speed:-vn,nx:dx,nz:dz}}return null;}
 export function stepVehicle(s,input,dt,terrain,obstacles=[],rails=[]){
@@ -32,7 +32,9 @@ export function stepVehicle(s,input,dt,terrain,obstacles=[],rails=[]){
   const stick=clamp(input.throttle||0,-1,1),target=stick>0?(s.boost?TUNE.boost:TUNE.cruise)*stick:stick<0?TUNE.reverse*-stick:0;
   const previous=longitudinal;
   // Easing the stick coasts down to the new speed; pulling back past centre brakes.
-  const braking=input.throttle<0&&longitudinal>.5?TUNE.brake:input.throttle>0?(longitudinal>target+.3?TUNE.coast:TUNE.brake):TUNE.coast;const drive=clamp(clamp((target-longitudinal)*1.4,-braking,s.boost?TUNE.boostAccel:TUNE.accel)+(slopeX*fx+slopeZ*fz)*9.81,-12,12);
+  const braking=input.throttle<0&&longitudinal>.5?TUNE.brake:input.throttle>0?(longitudinal>target+.3?TUNE.coast:TUNE.brake):TUNE.coast;// Gravity along the slope is applied with the velocity below; the motor's pull is limited, so a wall
+  // steeper than it can climb rolls you back down, and a transition trades speed for height.
+  const drive=clamp((target-longitudinal)*1.4,-braking,s.boost?TUNE.boostAccel:TUNE.accel);
   const surface=input.surface||{grip:1,rolling:0};const rolling=Math.sign(longitudinal)*Math.min(Math.abs(longitudinal)/dt,TUNE.rolling+surface.rolling+TUNE.drag*longitudinal*longitudinal);
   // Balance frees the motor brake so a manual can coast on its existing momentum.
   longitudinal+=((input.balance?0:drive)-rolling)*dt;
@@ -48,7 +50,9 @@ export function stepVehicle(s,input,dt,terrain,obstacles=[],rails=[]){
  if(s.state!=='riding')return null;
  let floor=terrain(s.x,s.z);
  if(s.grounded){if(floor-oldFloor>.22&&!(terrain.smooth&&terrain.smooth(s.x,s.z))){s.x=oldX;s.z=oldZ;s.vx*=-.08;s.vz*=-.08;floor=oldFloor;s.springVelocity-=1;if(magnitude>7)hurtVehicle(s,Math.pow(magnitude-7,1.4)*2.2,'Hit a ledge',magnitude>17);}
- else if(oldFloor-floor>.12){s.grounded=false;s.vy=clamp(s.vy,0,12);s.airTime=0;s.spin=0;s.flip=0;s.flipping=false;s.peakHeight=s.y;}
+ else if(oldFloor-floor>.12){s.grounded=false;s.vy=clamp(s.vy,0,12);
+  // Leaving a ramp lip, speed follows the surface: up its angle rather than full speed forward plus a vertical kick.
+  {const vh=Math.hypot(s.vx,s.vz);if(vh>.1&&s.vy>0){const k=1/Math.hypot(1,s.vy/vh);s.vx*=k;s.vz*=k;s.vy*=k;}}s.airTime=0;s.spin=0;s.flip=0;s.flipping=false;s.peakHeight=s.y;}
  if(s.grounded){s.y=floor;s.vy=clamp((floor-oldFloor)/dt,-12,12);const ahead=terrain(s.x+fx*.45,s.z+fz*.45),behind=terrain(s.x-fx*.45,s.z-fz*.45);const pitch=Math.abs(ahead-behind)<1?-Math.atan2(ahead-behind,.9):s.pitch;s.pitch+=(pitch-s.pitch)*(1-Math.exp(-dt*14));}}
  if(!s.grounded){s.airTime+=dt;s.vy-=9.81*dt;s.y+=s.vy*dt;s.peakHeight=Math.max(s.peakHeight,s.y);s.spin+=s.yawRate*dt;
   // A solid side cannot teleport a falling chair onto its upper surface.
@@ -61,6 +65,7 @@ export function stepVehicle(s,input,dt,terrain,obstacles=[],rails=[]){
  }
  s.springVelocity+=(-95*s.suspension-15*s.springVelocity)*dt;s.suspension=clamp(s.suspension+s.springVelocity*dt,-.16,.12);s.roll=0;
  if(updateStance(s,input,dt,acceleration))hurtVehicle(s,22,'Tipped beyond balance',true,Math.sign(s.tiltRoll||s.tiltPitch)||1);
- if(s.grounded&&magnitude<.06&&!input.throttle)s.vx=s.vz=0;
+ // The brakes hold the chair at rest, except on a transition too steep for them: then it rolls back down.
+ if(s.grounded&&magnitude<.06&&!input.throttle&&Math.hypot(slopeX,slopeZ)<.35)s.vx=s.vz=0;
  if(Math.abs(s.x)>126||Math.abs(s.z)>126||s.y< -10)hurtVehicle(s,100,'Outside the city',true);return landed;
 }

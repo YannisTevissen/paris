@@ -18,6 +18,8 @@ import {buildPlaza} from './plaza.js';
 import {buildMatte} from './matte.js';
 import {buildSquareProps} from './square_props.js';
 import {Daylight} from './daylight.js';
+import {buildDynamicProps} from './dynprops.js';
+import {buildPlay} from './play.js';
 import {STANCE_NAMES} from './stunts.js';
 import {CrashRider} from './ragdoll.js';
 const $=id=>document.getElementById(id);
@@ -48,7 +50,7 @@ const life=createLife(scene,obstacles,treeSpots,city.water,walkers,clips);
 // Concrete skate plaza (see skatepark.js): kickers, funbox, bank-to-quarter, ledge, manual pad, stair set, flat bars.
 const park=buildSkatepark(scene,obstacles);const rails=park.rails,ramps=park.footprints;
 // Fountain, planted islands, bench-ledges and paving bands in the middle of the square (see plaza.js).
-const plaza=buildPlaza(scene,obstacles,rails);const matte=buildMatte(scene,scene.fog.color);const squareProps=buildSquareProps(scene,obstacles);const daylight=new Daylight({scene,renderer,sun,hemi,visuals,matte,fog:scene.fog});ramps.push(...plaza.footprints);plantTrees(scene,plaza.treeSpots,obstacles);
+const plaza=buildPlaza(scene,obstacles,rails);const matte=buildMatte(scene,scene.fog.color);const squareProps=buildSquareProps(scene,obstacles);const dynProps=buildDynamicProps(scene,obstacles);const kidModels=(await Promise.all(['Male_Child_01','Female_Child_01'].map(n=>loadGLB(`./assets/models/people/${n}.glb`).catch(()=>null)))).filter(Boolean);const playUpdate=buildPlay(scene,kidModels);const daylight=new Daylight({scene,renderer,sun,hemi,visuals,matte,fog:scene.fog});ramps.push(...plaza.footprints);plantTrees(scene,plaza.treeSpots,obstacles);
 
 // Worn stencil paint on the stone instead of a sign board.
 const railSign=(()=>{const c=document.createElement('canvas');c.width=1024;c.height=128;const g=c.getContext('2d');g.fillStyle='#d9f25c';g.font='900 74px "Barlow Condensed","Helvetica Neue",Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('LAND ON BAR  /  GRIND',512,66);g.globalCompositeOperation='destination-out';for(let i=0;i<2600;i++){g.fillStyle=`rgba(0,0,0,${Math.random()*.9})`;g.fillRect(Math.random()*1024,Math.random()*128,1+Math.random()*5,1+Math.random()*3);}const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;const m=new THREE.Mesh(new THREE.PlaneGeometry(5,.62),new THREE.MeshStandardMaterial({map:t,transparent:true,depthWrite:false,roughness:.55,polygonOffset:true,polygonOffsetFactor:-3}));m.receiveShadow=true;return m;})();// (No writing on the ground at the spawn point.)
@@ -177,7 +179,10 @@ function drawMap(){mc.clearRect(0,0,160,160);mc.strokeStyle='#d9ecec33';mc.lineW
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.1);if(photoMode||photoBusy){visuals.render(text=>{$('photo-status').textContent=text});return;}cloudUniform.value=performance.now()*.001;update(dt);if(!paused){for(const e of life(dt,pos,started?speed:0))if(e.type==='knock'&&vehicle.state==='riding'){
   // Hitting someone costs momentum and, above a fast walk, hurts the rider too.
   popup(e.speed>7?'PEDESTRIAN DOWN · HARD HIT':'PEDESTRIAN DOWN');vehicle.vx*=.55;vehicle.vz*=.55;vehicle.springVelocity-=1.2;landingShake=Math.max(landingShake,.06);if(e.speed>4)hurtVehicle(vehicle,Math.min(70,(e.speed-4)*3.4),'Hit a pedestrian',e.speed>17);}
- traffic(dt,pos);}plaza.update(dt,performance.now()*.001);updateTrees(performance.now()*.001);matte.update(camera);{const now=performance.now()*.001;daylight.update(now);daylight.follow(camera,now);sunDir.copy(daylight.lightDir);if(sunDir.y<.12){sunDir.y=.12;sunDir.normalize();}sunUniform.value.copy(sunDir);}squareProps(dt,performance.now()*.001);player.position.copy(pos);player.rotation.y=heading;shadow.position.set(pos.x,terrain(pos.x,pos.z)+.03,pos.z);shadow.scale.setScalar(1+pos.y*.08);if(!started){const t=performance.now()*.00008;desired.set(pos.x+10+Math.sin(t)*2,7.1,pos.z+12);look.set(pos.x-3,1.8,pos.z-5);jets.forEach(j=>j.visible=false)}else{const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),travel=speed>4?Math.atan2(vehicle.vx,vehicle.vz):heading,aim=heading+wrap(travel-heading)*.45;camYaw+=wrap(aim-camYaw)*(1-Math.exp(-dt*6));
+ traffic(dt,pos);
+ playUpdate(dt,pos);
+ // Loose props shoved by the chair take a share of its momentum.
+ for(const e of dynProps(dt,pos))if(vehicle.state==='riding'){const k=e.mass/(150+e.mass);vehicle.vx-=e.nx*e.vrel*k;vehicle.vz-=e.nz*e.vrel*k;if(e.vrel>6)landingShake=Math.max(landingShake,.04);}}plaza.update(dt,performance.now()*.001);updateTrees(performance.now()*.001);matte.update(camera);{const now=performance.now()*.001;daylight.update(now);daylight.follow(camera,now);sunDir.copy(daylight.lightDir);if(sunDir.y<.12){sunDir.y=.12;sunDir.normalize();}sunUniform.value.copy(sunDir);}squareProps(dt,performance.now()*.001);player.position.copy(pos);player.rotation.y=heading;shadow.position.set(pos.x,terrain(pos.x,pos.z)+.03,pos.z);shadow.scale.setScalar(1+pos.y*.08);if(!started){const t=performance.now()*.00008;desired.set(pos.x+10+Math.sin(t)*2,7.1,pos.z+12);look.set(pos.x-3,1.8,pos.z-5);jets.forEach(j=>j.visible=false)}else{const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),travel=speed>4?Math.atan2(vehicle.vx,vehicle.vz):heading,aim=heading+wrap(travel-heading)*.45;camYaw+=wrap(aim-camYaw)*(1-Math.exp(-dt*6));
   // Framed for the real-scale chair (about 1.1 m long, rider's head at 1.3 m).
   const dist=cameraMode===1?11:cameraMode===2?3.3:4.3+speed*.06,height=cameraMode===1?7:cameraMode===2?1.95:1.75+speed*.018;
   desired.set(pos.x-Math.sin(camYaw)*dist,pos.y+height,pos.z-Math.cos(camYaw)*dist);const ahead=4+speed*.45;look.set(pos.x+Math.sin(camYaw)*ahead,pos.y+.95,pos.z+Math.cos(camYaw)*ahead)}

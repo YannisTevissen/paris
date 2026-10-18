@@ -55,7 +55,7 @@ export class Daylight{
   // Moonlight takes over at night: cool, soft, from high in the south-east of the view.
   this.lightDir.copy(this.dir);if(night>.01){const k=night;this.sun.color.lerp(new THREE.Color(.55,.66,.95),k);this.sun.intensity=Math.max(this.sun.intensity,.55*k);this.lightDir.lerp(new THREE.Vector3(.35,.85,-.4).normalize(),k).normalize();}
   // The tower's golden floodlighting after dark, and its sparkle for five minutes on the hour.
-  if(TOWER.iron){TOWER.iron.emissiveIntensity=night*.9;TOWER.lace.emissiveIntensity=night*.7;const m=this.date().getMinutes(),on=night>.5&&m<5;TOWER.sparkle.visible=on;if(on)TOWER.sparkle.material.opacity=.55+.45*Math.sin(now*23.7);}
+  if(TOWER.sparkle){TOWER.light(.12+.88*day,low,night);const m=this.date().getMinutes(),on=night>.5&&m<5;TOWER.sparkle.visible=on;if(on)TOWER.sparkle.material.opacity=.55+.45*Math.sin(now*23.7);}
   this.hemi.intensity=.12+.08*day;this.hemi.color.setRGB(.55+.4*day,.62+.33*day,.8+.15*day);
   this.scene.environmentIntensity=.06+.46*day;this.scene.backgroundIntensity=1;
   this.renderer.toneMappingExposure=.86+.9*night*.6+.15*low*day;
@@ -69,6 +69,6 @@ export class Daylight{
   // Regenerate image-based lighting when the sun has moved enough.
   if(force||Math.abs(deg-this.lastAlt)>.6||now-this.lastEnv>120){this.lastAlt=deg;this.lastEnv=now;if(this.env)this.env.dispose();this.env=this.pmrem.fromScene(this.envScene,0,.1,1000);this.scene.environment=this.env.texture;}
   return night;}
- follow(camera,now){this.sky.position.copy(camera.position);this.clouds.position.copy(camera.position);
+ follow(camera,now){this.sky.position.copy(camera.position);if(TOWER.face)TOWER.face(camera);this.clouds.position.copy(camera.position);
   const night=1-smooth(-10,-2,Math.asin(this.dir.y)/RAD);if(now-this.lampAt>.5){this.lampAt=now;const near=LAMPS.map(l=>({l,d:(l.x-camera.position.x)**2+(l.z-camera.position.z)**2})).sort((a,b)=>a.d-b.d).slice(0,this.lamps.length);
    near.forEach((n,i)=>this.lamps[i].position.set(n.l.x,4.2,n.l.z));}for(const l of this.lamps)l.intensity=night*55;}}

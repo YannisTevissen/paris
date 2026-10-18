@@ -196,14 +196,32 @@ const gold=far(new THREE.MeshStandardMaterial({color:'#d9b25a',roughness:.25,met
   }for(let z=-475;z>=-1100;z-=17)for(const s of [-1,1])for(const off of [104,116])farTrees.push({x:s*(off+rand()*3),z:z+(rand()-.5)*5,y,scale:1.5,lite:true});for(let x=-560;x<=560;x+=26){if(Math.abs(x)<30)continue;for(const s of [-1,1])farTrees.push({x:x+(rand()-.5)*6,z:-405+s*44,y,scale:1.5,lite:true});}
 
  const meshes=B.build(scene,{castShadow:false});meshes.forEach(m=>{m.receiveShadow=false;m.userData.far=true;});
- tower(scene,0,y,-760);
+ tower(scene,0,y,-760,scene.fog?scene.fog.color:new THREE.Color(.5,.46,.47));
  return {water,trees:[...farTrees,...[{x:-40,z:-140},{x:40,z:-140},{x:-40,z:-165},{x:40,z:-165},{x:-40,z:-190},{x:40,z:-190},{x:-40,z:-215},{x:40,z:-215},{x:-40,z:-240},{x:40,z:-240},{x:-40,z:-265},{x:40,z:-265},{x:-52,z:-152},{x:52,z:-152},{x:-52,z:-202},{x:52,z:-202},{x:-52,z:-252},{x:52,z:-252}].map(p=>({...p,y,scale:1.35}))]};}
 
 // The Eiffel Tower as a real riveted lattice: four curving legs whose faces are braced with crossed
 // diagonals, the first-floor arches, three platforms and a single braced shaft to the antenna, all as
 // individual iron members (instanced), painted in its graded brown (darker at the foot, lighter above).
 export const TOWER={};
-function tower(scene,cx,cy,cz){
+// The tower is part of the matte painting: two photographs from the Trocadéro cut out by
+// tools/key_tower.py ("Vue de la tour Eiffel depuis le Trocadéro", Czenon1, CC BY-SA 4.0, a sunlit
+// afternoon; "Eiffel Tower at night", Didier Bigand, CC BY 2.0, floodlit with its beacon), on a
+// billboard that turns about the tower's axis to face the viewer. Sizes put the antenna tip at 324 m
+// and the foot of the legs on the ground. Daylight dims and warms the day photo, hazes it with the
+// live fog colour, and fades the night photo in additively over it. ?tower=3d shows the lattice model.
+const TOWER_PHOTO={day:{width:133.61,height:326.86,bottom:-.6,offsetX:.36},night:{width:210.39,height:383.48,bottom:-.96,offsetX:0}};
+function towerMatte(scene,cx,cy,cz,haze){const loader=new THREE.TextureLoader();
+ const board=(file,size,opts)=>{const t=loader.load('./assets/matte/'+file);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+  const g=new THREE.PlaneGeometry(size.width,size.height);g.translate(size.offsetX,size.bottom+size.height/2,0);
+  const m=new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,fog:false,...opts});const mesh=new THREE.Mesh(g,m);
+  mesh.position.set(cx,cy,cz);mesh.renderOrder=-1;mesh.frustumCulled=false;mesh.userData.static=true;scene.add(mesh);return mesh;};
+ const day=board('tower_day.webp',TOWER_PHOTO.day,{});
+ day.material.onBeforeCompile=sh=>{sh.uniforms.uHaze={value:haze};sh.fragmentShader=sh.fragmentShader.replace('void main() {','uniform vec3 uHaze;\nvoid main() {').replace('#include <map_fragment>','#include <map_fragment>\n diffuseColor.rgb=mix(diffuseColor.rgb,uHaze,.2);');};
+ const night=board('tower_night.jpg',TOWER_PHOTO.night,{blending:THREE.AdditiveBlending,color:0x000000});night.renderOrder=0;night.visible=false;
+ TOWER.face=camera=>{const a=Math.atan2(camera.position.x-cx,camera.position.z-cz);day.rotation.y=night.rotation.y=a;};
+ TOWER.light=(level,low,dark)=>{day.material.color.setRGB(level,level*(1-.1*low),level*(1-.22*low));night.material.color.setScalar(dark*1.15);night.visible=dark>.01;};}
+function tower(scene,cx,cy,cz,haze){
+ const model=new URLSearchParams(location.search).get('tower')==='3d';if(!model)towerMatte(scene,cx,cy,cz,haze);const holder=model?scene:new THREE.Group();
  const half=y=>y<57?62-31*Math.pow(y/57,.8):y<116?31-11*((y-57)/59):y<276?20-15.5*Math.pow((y-116)/160,.75):4.5;
  const legW=y=>y<57?22-9*(y/57):13-6*((y-57)/59);
  const members=[];const add=(a,b,r)=>members.push([a,b,r]);
@@ -229,14 +247,14 @@ function tower(scene,cx,cy,cz){
  const mesh=new THREE.InstancedMesh(geo,iron,n);const m=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),c0=new THREE.Color('#2e2219'),c1=new THREE.Color('#5c4a3a'),col=new THREE.Color();
  members.forEach(([a,b,r],i)=>{const d=b.clone().sub(a),len=d.length();q.setFromUnitVectors(up,d.normalize());m.compose(a.clone().add(b).multiplyScalar(.5).add(P(cx,cy,cz)),q,new THREE.Vector3(r,len+r*.6,r));mesh.setMatrixAt(i,m);
   col.copy(c0).lerp(c1,Math.min(1,((a.y+b.y)/2)/300));mesh.setColorAt(i,col);});
- mesh.renderOrder=-1;mesh.userData.static=true;mesh.computeBoundingSphere();scene.add(mesh);
+ mesh.renderOrder=-1;mesh.userData.static=true;mesh.computeBoundingSphere();holder.add(mesh);
  // Lace between the members: alpha-cut lattice panels on every leg and shaft face give the tower its
  // dense, lacy read from a distance instead of a wireframe.
  const PB=new Builder();const lace=new THREE.MeshStandardMaterial({color:'#4a3a2e',roughness:.6,metalness:.4,alphaMap:latticeTexture(),alphaTest:.45,side:THREE.DoubleSide});lace.userData.castShadow=false;
  const panel=(a,b,c,d,len,wid)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([...a,...b,...c,...a,...c,...d].map((v,k)=>v+[cx,cy,cz][k%3]),3));const ur=wid/6,vr=len/6;g.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,ur,0,ur,vr,0,0,ur,vr,0,vr],2));g.computeVertexNormals();PB.add(g,lace,0,0,0,0,0,0,1,1,1,true);};
  for(const sx of [-1,1])for(const sz of [-1,1])for(let i=0;i<lv.length-1;i++){const A=legQuad(sx,sz,lv[i]),Bq=legQuad(sx,sz,lv[i+1]);for(let k=0;k<4;k++){const k2=(k+1)%4;panel(A[k].toArray(),A[k2].toArray(),Bq[k2].toArray(),Bq[k].toArray(),lv[i+1]-lv[i],A[k].distanceTo(A[k2]));}}
  for(let i=0;i<sv.length-1;i++){const A=sq(sv[i]),Bq=sq(sv[i+1]);for(let k=0;k<4;k++){const k2=(k+1)%4;panel(A[k].toArray(),A[k2].toArray(),Bq[k2].toArray(),Bq[k].toArray(),sv[i+1]-sv[i],A[k].distanceTo(A[k2]));}}
- PB.build(scene,{castShadow:false}).forEach(m=>{m.receiveShadow=false;m.renderOrder=-1;m.userData.towerLace=true;});
+ PB.build(holder,{castShadow:false}).forEach(m=>{m.receiveShadow=false;m.renderOrder=-1;m.userData.towerLace=true;});
  iron.userData.tower=true;lace.userData.tower=true;iron.emissive=new THREE.Color('#ffb04a');iron.emissiveIntensity=0;lace.emissive=new THREE.Color('#ffa840');lace.emissiveIntensity=0;
  // The hourly sparkle: a few thousand twinkling lights scattered over the structure.
  const sp=[];for(let i=0;i<2600;i++){const [a,b]=members[Math.floor(Math.random()*members.length)];const t=Math.random();sp.push(cx+a.x+(b.x-a.x)*t,cy+a.y+(b.y-a.y)*t,cz+a.z+(b.z-a.z)*t);}
@@ -247,7 +265,8 @@ function tower(scene,cx,cy,cz){
  for(const [y,c,h] of [[57,35,3],[116,21,2.4],[276,5.5,4]]){B.box(c*2,h,c*2,deck,cx,cy+y+h/2,cz);B.box(c*2+1.6,.8,c*2+1.6,deck,cx,cy+y+h+.4,cz);}
  B.box(58,4.2,58,glass,cx,cy+62.5,cz);B.box(60,.6,60,deck,cx,cy+64.9,cz);B.box(34,3.4,34,glass,cx,cy+120.2,cz);
  B.cyl(2.6,3.2,12,deck,cx,cy+286,cz,8);B.cyl(1.2,1.8,6,glass,cx,cy+295,cz,8);B.cyl(.35,.8,26,deck,cx,cy+311,cz,6);
- B.build(scene,{castShadow:false}).forEach(mm=>{mm.receiveShadow=false;mm.renderOrder=-1;});}
+ B.build(holder,{castShadow:false}).forEach(mm=>{mm.receiveShadow=false;mm.renderOrder=-1;});
+ if(model)TOWER.light=(level,low,dark)=>{iron.emissiveIntensity=dark*.9;lace.emissiveIntensity=dark*.7;};}
 
 export const buildVista=scene=>vista(scene);
 export function buildCity(scene,{vista:withVista=true}={}){const M=materials();const B=new Builder();const obstacles=[];

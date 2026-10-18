@@ -33,22 +33,10 @@ export function buildSquareProps(scene,obstacles){
  // Crêpe stand with café tables.
  const S={x:-30,z:52};const sy=y0([S.x,S.z]);B.box(3.2,2.2,2,M.green,S.x,sy+1.1,S.z);B.box(3.4,.08,2.2,M.cream,S.x,sy+1.05,S.z+.15);B.box(3.0,.9,.06,M.cream,S.x,sy+1.75,S.z+1.02);
  const aw=new THREE.PlaneGeometry(3.6,1.1);B.add(aw,M.awning,S.x,sy+2.45,S.z+1.45,-1.05,0,0);B.box(3.4,.4,.06,M.green,S.x,sy+2.5,S.z-1.02);obstacles.push({x:S.x,z:S.z,w:3.4,d:2.4,h:2.5,label:'Stand'});
- for(const [tx,tz] of [[-34,47],[-30,46.5],[-26,47.5],[-33,43],[-27.5,43.2]]){const ty=y0([tx,tz]);B.cyl(.35,.35,.04,M.cream,tx,ty+.74,tz,20);B.cyl(.03,.03,.74,M.steel,tx,ty+.37,tz,8);B.cyl(.25,.25,.03,M.steel,tx,ty+.015,tz,14);
-  B.cyl(.025,.025,2.3,M.steel,tx,ty+1.15,tz,6);B.add(new THREE.ConeGeometry(1.35,.45,10,1,true),M.parasol,tx,ty+2.25,tz);
-  for(const a of [0,Math.PI]){const cx=tx+Math.sin(a)*.62,cz=tz+Math.cos(a)*.62;B.box(.42,.04,.42,M.wood,cx,ty+.45,cz);for(const [lx,lz] of [[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]])B.cyl(.015,.015,.45,M.steel,cx+lx,ty+.225,cz+lz,5);B.box(.42,.42,.03,M.wood,cx-Math.sin(a)*.2,ty+.68,cz-Math.cos(a)*.2,a);}
-  obstacles.push({x:tx,z:tz,w:1.6,d:1.6,h:.8,label:'Café table'});}
+ for(const [tx,tz] of [[-34,47],[-30,46.5],[-26,47.5],[-33,43],[-27.5,43.2]]){const ty=y0([tx,tz]);B.cyl(.025,.025,2.3,M.steel,tx,ty+1.15,tz+.9,6);B.add(new THREE.ConeGeometry(1.35,.45,10,1,true),M.parasol,tx,ty+2.25,tz+.9);}
  // Vélib' station: docks with grey-green bikes.
  const bikeTorus=new THREE.TorusGeometry(.33,.03,8,24).rotateY(Math.PI/2);
- for(let i=0;i<10;i++){const bx=-11+i*1.1,bz=58.5,by=y0([bx,bz]);B.box(.16,.95,.22,M.velib,bx,by+.47,bz-.9);B.box(.1,.06,.03,M.lime,bx,by+.85,bz-.79);
-  if(i%4===3)continue;for(const dz of [-.52,.52])B.add(bikeTorus,M.tyre,bx,by+.34,bz+dz);
-  const tube=(a,b,r=.025)=>{const A=new THREE.Vector3(...a),E=new THREE.Vector3(...b),d=E.clone().sub(A);const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());const e=new THREE.Euler().setFromQuaternion(q);B.add(new THREE.CylinderGeometry(r,r,d.length(),6),M.velib,(A.x+E.x)/2,(A.y+E.y)/2,(A.z+E.z)/2,e.x,e.y,e.z);};
-  tube([bx,by+.34,bz-.52],[bx,by+.95,bz-.42],.03);tube([bx,by+.4,bz+.1],[bx,by+.92,bz-.42],.035);tube([bx,by+.4,bz+.1],[bx,by+.34,bz+.52]);tube([bx,by+.4,bz+.1],[bx,by+.85,bz+.2],.03);
-  B.box(.08,.05,.24,M.tyre,bx,by+.88,bz+.2);B.box(.5,.03,.03,M.steel,bx,by+1.0,bz-.44);B.box(.32,.2,.3,M.velib,bx,by+.95,bz-.65);}
- obstacles.push({x:-6,z:58.2,w:11.5,d:1.8,h:1.1,label:'Velib station'});
- // A few e-scooters left lying around.
- for(const [sx,sz,ry,lying] of [[-14,54,.4,false],[6,52.5,2.2,true],[22,46,-.8,false],[-4,30,1.4,true]]){const sy2=y0([sx,sz]);B.push(sx,sy2,sz,ry);const rz=lying?Math.PI/2-.05:0,lift=lying?.06:0;
-  B.add(new THREE.BoxGeometry(.16,.05,.75),M.scootDeck,0,lying?.09:.1,0,0,0,rz);B.add(new THREE.CylinderGeometry(.02,.02,1.05,6),M.scoot,lying?-.45:0,lying?.11:.6,.36,lying?0:-.15,0,rz);
-  B.add(new THREE.BoxGeometry(.45,.025,.025),M.scoot,lying?-.95:0,lying?.13:1.12,.42,0,0,rz);for(const z of [-.35,.38])B.add(new THREE.TorusGeometry(.1,.03,6,14).rotateY(Math.PI/2),M.tyre,lying?-.02:0,.1+lift*0,z,0,0,rz);B.pop();
-  obstacles.push({x:sx,z:sz,w:.9,d:.9,h:.3,label:'Scooter'});}
+ for(let i=0;i<10;i++){const bx=-11+i*1.1,bz=58.5,by=y0([bx,bz]);B.box(.16,.95,.22,M.velib,bx,by+.47,bz-.9);B.box(.1,.06,.03,M.lime,bx,by+.85,bz-.79);}
+ obstacles.push({x:-6,z:57.6,w:11.5,d:.4,h:1.1,label:'Velib station'});
  B.build(scene).forEach(m=>{m.castShadow=m.receiveShadow=true;});
  return (dt,now)=>{spin.rotation.y+=dt*.32;for(const h of horses)h.g.position.y=h.base+Math.sin(now*1.6+h.a*3)*.18;};}

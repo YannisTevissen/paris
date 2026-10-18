@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import {clone as cloneSkinned} from './vendor/jsm/utils/SkeletonUtils.js';
 import {groundHeight} from './street.js';
+import {makeDog} from './play.js';
 // Ambient life, all instanced so the whole crowd costs a handful of draw calls:
 // pigeons that peck and take off when the chair comes close, plane leaves drifting down from
 // nearby trees, and pedestrians walking the outer pavements or stopping to look at the tower.
@@ -74,25 +75,29 @@ function crowd(scene,obstacles,models,clips){const routes=[];
  routes.push({axis:'z',c:-44,a0:-56,a1:56},{axis:'z',c:44,a0:-56,a1:30},{axis:'x',c:48,a0:-40,a1:40},{axis:'x',c:-52,a0:-40,a1:40});
  // Through the middle of the square, threading between the fountain, carousel and skate obstacles.
  routes.push({axis:'z',c:-22,a0:-15,a1:55},{axis:'z',c:22,a0:-12,a1:45},{axis:'x',c:-60,a0:-40,a1:40},{axis:'x',c:28.5,a0:-12,a1:12});
- const Y=new THREE.Vector3(0,1,0),q=new THREE.Quaternion(),qy=new THREE.Quaternion(),axis=new THREE.Vector3(),qw=new THREE.Quaternion(),qp=new THREE.Quaternion(),tmp=new THREE.Vector3();
+ const Y=new THREE.Vector3(0,1,0),q=new THREE.Quaternion(),qy=new THREE.Quaternion(),axis=new THREE.Vector3(),qw=new THREE.Quaternion(),qp=new THREE.Quaternion(),tmp=new THREE.Vector3(),qwTmp=new THREE.Vector3();
  let mi=0;const people=[];
  const spawn=(kind,opts)=>{const g=models[mi++%models.length],sex=g.userData.sex||'m',C=clips[sex]||{};const body=cloneSkinned(g.scene);body.traverse(o=>{o.userData.static=true;if(o.isMesh){o.castShadow=o.receiveShadow=true;o.frustumCulled=false;}});scene.add(body);
   const k=.94+rand()*.12;body.scale.setScalar(k);const mixer=new THREE.AnimationMixer(body),acts={};
   if(g.animations[0]){acts.walk=mixer.clipAction(g.animations[0]);}for(const [n,c] of Object.entries(C))acts[n]=mixer.clipAction(c);
-  let head=null;body.traverse(o=>{if(!head&&o.isBone&&/Head$/.test(o.name))head=o;});
-  const p={kind,body,mixer,acts,head,cur:null,yaw:0,x:0,z:0,v:0,state:'walk',t:0,tilt:0,spin:0,fx:0,fz:0,slide:0,look:0,pace:(g.userData.pace||1.2)*k,...opts};
+  let head=null,hand=null;body.traverse(o=>{if(!head&&o.isBone&&/Head$/.test(o.name))head=o;if(!hand&&o.isBone&&/R_Hand$|R Hand$/.test(o.name))hand=o;});
+  const p={kind,body,mixer,acts,head,hand,cur:null,yaw:0,x:0,z:0,v:0,state:'walk',t:0,tilt:0,spin:0,fx:0,fz:0,slide:0,look:0,pace:(g.userData.pace||1.2)*k,...opts};
   p.ob={x:p.x,z:p.z,w:.5,d:.5,h:1.8,label:'Pedestrian',soft:true};obstacles.push(p.ob);people.push(p);return p;};
  const play=(p,name,fade=.5)=>{const a=p.acts[name]||p.acts.walk;if(!a||p.cur===a)return;a.reset();a.time=rand()*a.getClip().duration;a.play();if(p.cur)p.cur.crossFadeTo(a,fade,false);p.cur=a;};
  for(let i=0;i<52;i++){const r=routes[i%routes.length],u=r.a0+rand()*(r.a1-r.a0),off=(rand()-.5)*.3,dir=rand()<.5?-1:1;
-  const p=spawn('walker',{r,u,off,dir,speed:(r.c<-85?.8:1.15)+rand()*.3,nextPause:6+rand()*30});p.x=r.axis==='x'?u:r.c+off;p.z=r.axis==='x'?r.c+off:u;p.yaw=r.axis==='x'?(dir>0?Math.PI/2:-Math.PI/2):(dir>0?0:Math.PI);play(p,'walk',0);}
+  const p=spawn('walker',{r,u,off,dir,speed:(r.c<-85?.8:1.15)+rand()*.3,nextPause:6+rand()*30});p.x=r.axis==='x'?u:r.c+off;p.z=r.axis==='x'?r.c+off:u;p.yaw=r.axis==='x'?(dir>0?Math.PI/2:-Math.PI/2):(dir>0?0:Math.PI);play(p,'walk',0);
+  // Some walkers have a dog on a leash.
+  if([3,11,19,27,40].includes(i)){p.dog=makeDog(i+1);scene.add(p.dog.root);p.dg={x:p.x,z:p.z,yaw:p.yaw,v:0};p.leash=new THREE.Line(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute([0,0,0,0,0,0],3)),new THREE.LineBasicMaterial({color:'#1b1b1b'}));p.leash.frustumCulled=false;p.leash.userData.static=true;scene.add(p.leash);}}
  for(const G of GROUPS)for(let i=0;i<G.n;i++){const a=i/G.n*Math.PI*2+rand()*.4,rad=G.n>1?.75:0;const p=spawn('stand',{state:'idle',idle:G.clip});p.x=G.x+Math.cos(a)*rad;p.z=G.z+Math.sin(a)*rad;p.yaw=G.n>1?Math.atan2(G.x-p.x,G.z-p.z):rand()*6.28;play(p,G.clip,0);}
  for(const [i,b] of BENCHES.entries()){if(i%3===1)continue;const p=spawn('sit',{state:'idle',idle:'sit'});p.yaw=b.yaw;p.x=b.x+Math.sin(b.yaw)*-.12+(i%2?.4:-.4)*Math.cos(b.yaw);p.z=b.z+Math.cos(b.yaw)*-.12;play(p,'sit',0);}
  let last=null;
  return (dt,player,speed)=>{const events=[];const pvx=last&&dt>0?(player.x-last.x)/dt:0,pvz=last&&dt>0?(player.z-last.z)/dt:0;last={x:player.x,z:player.z};
-  for(const p of people){const d=Math.hypot(p.x-player.x,p.z-player.z);
+  for(const p of people){const d=Math.hypot(p.x-player.x,p.z-player.z);p.d=d;
    if(p.state==='walk'||p.state==='pause'||p.state==='idle'||p.state==='turn'){
     const closing=Math.hypot(pvx,pvz);if(d<.8&&closing>1.4&&Math.abs(player.y||0)<1.2){let fx=pvx/closing,fz=pvz/closing;if(closing<3){fx=(p.x-player.x)/(d||1);fz=(p.z-player.z)/(d||1);}
-     p.resume=p.state==='idle'?'idle':'walk';p.state='fall';p.t=0;p.tilt=0;p.spin=0;p.fx=fx;p.fz=fz;p.slide=Math.min(closing*.55,6);p.ob.x=1e4;if(p.cur)p.cur.paused=true;events.push({type:'knock',speed:closing});continue;}}
+     p.resume=p.state==='idle'?'idle':'walk';p.resumeClip=p.cur;p.state='fall';p.t=0;p.tilt=.08;p.spin=Math.min(closing*.35,2.5);p.fx=fx;p.fz=fz;p.slide=Math.min(closing*.45,5);p.ob.x=1e4;
+     // Knees buckle as they go down.
+     if(p.acts.sit){const a=p.acts.sit;a.reset();a.play();a.timeScale=.6;if(p.cur)p.cur.crossFadeTo(a,.3,false);p.cur=a;}events.push({type:'knock',speed:closing});continue;}}
    if(p.state==='walk'){const near=d<2.2;
     // Step aside for someone coming the other way on the same line.
     let side=0;for(const o of people)if(o!==p&&o.state==='walk'&&o.r===p.r&&o.dir!==p.dir&&Math.abs(o.u-p.u)<3)side=p.dir*.45;
@@ -106,15 +111,24 @@ function crowd(scene,obstacles,models,clips){const routes=[];
    else if(p.state==='pause'){p.v=0;p.t-=dt;if(p.t<0){p.state='walk';p.nextPause=15+rand()*35;play(p,'walk');p.cur.timeScale=0;}}
    if(p.state==='walk'||p.state==='pause'||p.state==='idle'||p.state==='turn'){
     p.body.position.set(p.x,groundHeight(p.x,p.z),p.z);p.body.quaternion.setFromAxisAngle(Y,p.yaw);p.ob.x=p.x;p.ob.z=p.z;
+    if(p.dog){// The dog trots at heel on the right, sniffs when its owner stops, and shies away from the chair.
+     const rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw),fx=Math.sin(p.yaw),fz=Math.cos(p.yaw);let tx=p.x-rx*.75+fx*.45,tz=p.z-rz*.75+fz*.45;const cd=Math.hypot(p.dg.x-player.x,p.dg.z-player.z);if(cd<2.2){tx=p.dg.x+(p.dg.x-player.x)/cd;tz=p.dg.z+(p.dg.z-player.z)/cd;}
+     const dx=tx-p.dg.x,dz=tz-p.dg.z,dd=Math.hypot(dx,dz);const want=dd>.15?Math.min(4,dd*3):0;p.dg.v+=(want-p.dg.v)*(1-Math.exp(-dt*6));const yaw=dd>.15?Math.atan2(dx,dz):p.yaw;p.dg.yaw+=Math.atan2(Math.sin(yaw-p.dg.yaw),Math.cos(yaw-p.dg.yaw))*(1-Math.exp(-dt*6));
+     p.dg.x+=Math.sin(p.dg.yaw)*p.dg.v*dt;p.dg.z+=Math.cos(p.dg.yaw)*p.dg.v*dt;p.dog.root.position.set(p.dg.x,groundHeight(p.dg.x,p.dg.z),p.dg.z);p.dog.root.rotation.y=p.dg.yaw;p.dog.update(dt,p.dg.v,p.state==='pause'?'sniff':p.dg.v<.15?'sit':'walk');
+     if(p.hand&&d<90){p.body.updateMatrixWorld(true);const h=p.hand.getWorldPosition(tmp);p.dog.neck.getWorldPosition(qwTmp);const a=p.leash.geometry.attributes.position;a.setXYZ(0,h.x,h.y,h.z);a.setXYZ(1,qwTmp.x,qwTmp.y,qwTmp.z);a.needsUpdate=true;}}
     if(d<90){p.mixer.update(p.state==='idle'||p.state==='pause'?dt:dt);
      // Glance at the chair when it is close: head turns toward it within a natural range.
      const target=d<7?Math.max(-1,Math.min(1,Math.atan2(Math.sin(Math.atan2(player.x-p.x,player.z-p.z)-p.yaw),Math.cos(Math.atan2(player.x-p.x,player.z-p.z)-p.yaw)))):0;p.look+=(target-p.look)*(1-Math.exp(-dt*4));
      if(p.head&&Math.abs(p.look)>.01){qw.setFromAxisAngle(Y,p.look*.85);p.head.parent.getWorldQuaternion(qp);const qd=qp.clone().invert().multiply(qw).multiply(qp);p.head.quaternion.premultiply(qd);}}
     continue;}
    // Fall, lie, get up.
-   p.t+=dt;if(p.state==='fall'){p.spin+=dt*(2.2+p.spin*5);p.tilt=Math.min(Math.PI/2*.97,p.tilt+p.spin*dt*2.4);p.slide*=Math.exp(-dt*(p.tilt>1.3?5:1.2));p.x+=p.fx*p.slide*dt;p.z+=p.fz*p.slide*dt;if(p.t>1.1){p.state='down';p.t=0;}}
-   else if(p.state==='down'){if(p.t>3.2){p.state='rise';p.t=0;}}
-   else if(p.state==='rise'){p.tilt=Math.max(0,p.tilt-dt*1.6);if(p.tilt<=0){p.state=p.resume||'walk';if(p.cur)p.cur.paused=false;if(p.r)p.u=p.r.axis==='x'?p.x:p.z;p.ob.x=p.x;p.ob.z=p.z;p.v=0;}}
+   // A toppling body: slow at first, accelerating like an inverted pendulum, a thump and a small
+   // bounce at the ground, a short slide, then an eased stand-up blending back into the old clip.
+   p.t+=dt;if(p.d<90)p.mixer.update(dt);
+   if(p.state==='fall'){p.spin+=8.6*Math.sin(p.tilt)*dt;p.tilt+=p.spin*dt;const flat=Math.PI/2*.94;if(p.tilt>=flat){p.tilt=flat;p.spin=-p.spin*.18;if(Math.abs(p.spin)<.4){p.spin=0;p.state='down';p.t=0;}}
+    p.slide*=Math.exp(-dt*(p.tilt>1.2?4:.8));p.x+=p.fx*p.slide*dt;p.z+=p.fz*p.slide*dt;}
+   else if(p.state==='down'){p.slide*=Math.exp(-dt*4);p.x+=p.fx*p.slide*dt;p.z+=p.fz*p.slide*dt;if(p.t>2.8){p.state='rise';p.t=0;p.tilt0=p.tilt;}}
+   else if(p.state==='rise'){const k=Math.min(1,p.t/1.4),e=k*k*(3-2*k);p.tilt=p.tilt0*(1-e);if(k>=1){p.state=p.resume||'walk';const back=p.resumeClip||p.acts.walk;if(back&&p.cur!==back){back.reset();back.play();if(p.cur)p.cur.crossFadeTo(back,.5,false);p.cur=back;}if(p.r)p.u=p.r.axis==='x'?p.x:p.z;p.ob.x=p.x;p.ob.z=p.z;p.v=0;}}
    axis.set(p.fz,0,-p.fx).normalize();q.setFromAxisAngle(axis,p.tilt);qy.setFromAxisAngle(Y,p.yaw);
    p.body.quaternion.copy(q).multiply(qy);p.body.position.set(p.x,groundHeight(p.x,p.z)+.11*Math.sin(p.tilt),p.z);}
   return events;};}
