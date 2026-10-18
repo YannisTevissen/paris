@@ -1,0 +1,108 @@
+[
+  {
+    "material": "stone",
+    "asset": "pavement_03",
+    "url": "https://polyhaven.com/a/pavement_03",
+    "license": "CC0"
+  },
+  {
+    "material": "concrete",
+    "asset": "concrete_floor_02",
+    "url": "https://polyhaven.com/a/concrete_floor_02",
+    "license": "CC0"
+  },
+  {
+    "material": "asphalt",
+    "asset": "asphalt_02",
+    "url": "https://polyhaven.com/a/asphalt_02",
+    "license": "CC0"
+  },
+  {
+    "material": "limestone",
+    "asset": "white_sandstone_blocks_02",
+    "url": "https://polyhaven.com/a/white_sandstone_blocks_02",
+    "license": "CC0"
+  },
+  {
+    "material": "fabric",
+    "asset": "denim_fabric",
+    "url": "https://polyhaven.com/a/denim_fabric",
+    "license": "CC0"
+  },
+  {
+    "material": "leather",
+    "asset": "fabric_leather_01",
+    "url": "https://polyhaven.com/a/fabric_leather_01",
+    "license": "CC0"
+  },
+  {
+    "asset": "belfast_sunset_puresky",
+    "url": "https://polyhaven.com/a/belfast_sunset_puresky",
+    "license": "CC0"
+  },
+  {
+    "material": "cobble",
+    "asset": "cobblestone_floor_08",
+    "url": "https://polyhaven.com/a/cobblestone_floor_08",
+    "license": "CC0"
+  },
+  {
+    "material": "bark",
+    "asset": "bark_platanus",
+    "url": "https://polyhaven.com/a/bark_platanus",
+    "license": "CC0"
+  },
+  {
+    "material": "slate",
+    "asset": "roof_slates_02",
+    "url": "https://polyhaven.com/a/roof_slates_02",
+    "license": "CC0"
+  },
+  {
+    "material": "granite",
+    "asset": "granite_tile",
+    "url": "https://polyhaven.com/a/granite_tile",
+    "license": "CC0"
+  },
+  {
+    "material": "gravel",
+    "asset": "leaf_scattered_gravel",
+    "url": "https://polyhaven.com/a/leaf_scattered_gravel",
+    "license": "CC0"
+  },
+  {
+    "model": "street_lamp_01",
+    "asset": "street_lamp_01",
+    "url": "https://polyhaven.com/a/street_lamp_01",
+    "license": "CC0"
+  },
+  {
+    "model": "outdoor_table_chair_set_01",
+    "asset": "outdoor_table_chair_set_01",
+    "url": "https://polyhaven.com/a/outdoor_table_chair_set_01",
+    "license": "CC0"
+  },
+  {
+    "model": "potted_plant_02",
+    "asset": "potted_plant_02",
+    "url": "https://polyhaven.com/a/potted_plant_02",
+    "license": "CC0"
+  },
+  {
+    "model": "planter_box_01",
+    "asset": "planter_box_01",
+    "url": "https://polyhaven.com/a/planter_box_01",
+    "license": "CC0"
+  },
+  {
+    "model": "people",
+    "asset": "Microsoft Rocketbox: Male_Adult_01, Male_Adult_03, Male_Adult_08, Male_Adult_14, Female_Adult_02, Female_Adult_05, Female_Adult_11, Female_Adult_14, m_walk_neutral_01, f_walk_neutral_01",
+    "url": "https://github.com/microsoft/Microsoft-Rocketbox",
+    "license": "MIT"
+  },
+  {
+    "model": "power_chair",
+    "asset": "Blender-modelled for Paris / Overdrive",
+    "license": "original"
+  }
+]
